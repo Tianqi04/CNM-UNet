@@ -19,7 +19,7 @@
 
 **3. Model Training and Source Set Performance Testing (Polyp Dataset Example).**
 
-```
+```bash
 cd Polyp
 python train.py
 ```
@@ -28,7 +28,7 @@ python train.py
 - To test the generalization capability, place your pre-trained model into the ./Polyp/results/ . 
 - Remember to modify the pre-trained model path and test sets name in config_setting.py.
 
-```
+```bash
 cd Polyp
 python test.py
 ```
