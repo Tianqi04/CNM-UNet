@@ -7,7 +7,7 @@
 
 **1. Prepare the dataset.**
 
-- The ISIC18, Polyp, and OD/OC datasets can be downloaded from [insert download link here if available, otherwise specify where to find it]. 
+- The ISIC18, Polyp, and OD/OC datasets can be downloaded from [Google Drive](https://drive.google.com/drive/folders/1fxFPTyHtLiMPvbC8RX19lYNk-xPH8gW-). 
 - After downloading, please place the datasets into the following directories:
 
   - './ISIC18/data/ISIC18/'
