@@ -37,4 +37,4 @@ python test.py
 - After training or testing, you could obtain the results in './Polyp/results/'.
 
 **6. Acknowledgement.**
-- Parts of the code are based on the Pytorch implementations of light weight nmODE, NODE and VPTTA.
+- Parts of the code are based on the Pytorch implementations of [Lightweight nmODE](https://github.com/nayutayuki/Lightweight-nmODE-Decoders-For-U-like-networks), [NODE](https://github.com/rtqichen/torchdiffeq) and [VPTTA](https://github.com/Chen-Ziyang/VPTTA).
