@@ -121,9 +121,8 @@ def main(config):
 
     prompt = Prompt(prompt_alpha=config.prompt_alpha, image_size=config.input_size_h, batch_size=1).cuda()
     memory_bank = Memory(size=config.memory_size, dimension=prompt.data_prompt.numel())
-    # 优化器
     optimizer_DUSE = torch.optim.Adam(prompt.parameters(),
-                                 lr=0.01, #0.05
+                                 lr=0.01,
                                  betas=(0.9, 0.99),
                                  weight_decay=0.00)
 
