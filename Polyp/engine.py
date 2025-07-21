@@ -262,7 +262,7 @@ def test_one_epoch_DUSE(test_loader,
             model(prompt_x)
             times, bn_loss = 0, 0
             for nm, m in model.named_modules():
-                if isinstance(m, AdaBN):  # 0.5 200（0.5 30 30（50））
+                if isinstance(m, AdaBN):
                     weight = cfg.H_base
                     if nm == 'Mult_up.sigma2.0' or nm == 'Mult_up.sigma.1':
                         weight = cfg.k * cfg.H_base
