@@ -69,6 +69,10 @@ class CNM_Block(nn.Module):
         # Continuous ODE solver
         self.Con_solver= nmNet_head_link_d1d2_2(delta, 3, 3,
                                                 3)
+        self.optimizer = torch.optim.Adam(self.Con_solver.parameters(),
+                                                lr=0.01,
+                                                betas=(0.9, 0.99),
+                                                weight_decay=0.00)
 
     def forward(self, gamma, x1, x2, x3, x4, x5, b, weight_y1,
                 weight_x1, weight_x2, weight_x3, weight_x4, weight_x5,
@@ -95,33 +99,16 @@ class CNM_Block(nn.Module):
                 self.train()
                 # Keep a copy of the original parameters.
                 original_Solver_params = [param.data.clone() for param in self.Con_solver.parameters()]
-
-                for param in self.Con_solver.parameters():
-                    param.requires_grad_(True)
-                optimizer_Con_Solver = torch.optim.Adam(self.Con_solver.parameters(),
-                                                 lr=0.01,
-                                                 betas=(0.9, 0.99),
-                                                 weight_decay=0.00)
                 y_next_t = self.sigma2(self.Con_solver(gamma_avg, y_next))
-                y_next.requires_grad_(True)
-                y_next_t.requires_grad_(True)
 
-                for param in self.Con_solver.parameters():
-                    param.requires_grad_(True)
-
+                optimizer_Con_Solver = self.optimizer
                 loss = self.Con_solver.dydt_loss
-                loss.requires_grad_(True)
-
                 optimizer_Con_Solver.zero_grad()
                 loss.backward(retain_graph=True)
                 optimizer_Con_Solver.step()
 
                 self.eval()
 
-                y_next.grad = None
-                y_next_t.grad = None
-                for param in self.Con_solver.parameters():
-                    param.requires_grad = False
             y_next_t = self.sigma2(self.Con_solver(gamma_avg, y_next))
             # Restore the original parameters.
             for param, saved_data in zip(self.Con_solver.parameters(), original_Solver_params):
