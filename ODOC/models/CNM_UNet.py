@@ -47,7 +47,7 @@ class OutConv(nn.Module):
 
 
 class CNM_Block(nn.Module):
-    def __init__(self,delta,in_channel1,in_channel2,in_channel3,in_channel4,in_channel5,out_channel,kernel_size=3,stride=1,padding=0,dilation=1): # dilation（膨胀倍率，默认为1）
+    def __init__(self,delta,in_channel1,in_channel2,in_channel3,in_channel4,in_channel5,out_channel,kernel_size=3,stride=1,padding=0,dilation=1):
         super().__init__()
 
         self.g1 = nn.Conv2d(in_channels=in_channel1, out_channels=out_channel, kernel_size=kernel_size, stride=stride,
@@ -66,22 +66,27 @@ class CNM_Block(nn.Module):
             nn.BatchNorm2d(out_channel)
         )
         self.sigma2 = nn.Sequential(nn.BatchNorm2d(out_channel))
+        # Continuous ODE solver
         self.Con_solver= nmNet_head_link_d1d2_2(delta, 3, 3,
                                                 3)
+        self.optimizer = torch.optim.Adam(self.Con_solver.parameters(),
+                                                lr=0.005,
+                                                betas=(0.9, 0.99),
+                                                weight_decay=0.00)
 
-    def forward(self, gamma, x1, x2, x3, x4, x5, y, weight_y1,
+    def forward(self, gamma, x1, x2, x3, x4, x5, b, weight_y1,
                 weight_x1, weight_x2, weight_x3, weight_x4, weight_x5,
                 scale1, scale2, scale3, scale4, scale5):
-        y_next = self.sigma(weight_y1*y+
-                            F.interpolate(self.g1(weight_x1*x1),scale_factor=scale1,mode='bilinear')+
-                            F.interpolate(self.g2(weight_x2*x2),scale_factor=scale2,mode='bilinear')+
-                            F.interpolate(self.g3(weight_x3*x3),scale_factor=scale3,mode='bilinear')+
-                            F.interpolate(self.g4(weight_x4*x4),scale_factor=scale4,mode='bilinear')+
+        y_next = self.sigma(weight_y1 * b +
+                            F.interpolate(self.g1(weight_x1*x1),scale_factor=scale1,mode='bilinear') +
+                            F.interpolate(self.g2(weight_x2*x2),scale_factor=scale2,mode='bilinear') +
+                            F.interpolate(self.g3(weight_x3*x3),scale_factor=scale3,mode='bilinear') +
+                            F.interpolate(self.g4(weight_x4*x4),scale_factor=scale4,mode='bilinear') +
                             F.interpolate(self.g5(weight_x5*x5),scale_factor=scale5,mode='bilinear'))
 
 
-        B_y = y_next.shape[0]
-        B_dydt = gamma.shape[0]
+        B_y = y_next.shape[0] # y_next: [B,c,h,w]
+        B_dydt = gamma.shape[0] # dydt: [1,c,h,w]
         if B_y != B_dydt:
             gamma_avg = gamma.expand(B_y, -1, -1, -1)
         else:
@@ -92,39 +97,20 @@ class CNM_Block(nn.Module):
         else: # DUSE testing
             with torch.enable_grad():
                 self.train()
-                # Keep a copy of the original parameters in CNM-Block.
+                # Keep a copy of the original parameters.
                 original_Solver_params = [param.data.clone() for param in self.Con_solver.parameters()]
-
-                for param in self.Con_solver.parameters():
-                    param.requires_grad_(True)
-                optimizer_Con_Solver = torch.optim.Adam(self.Con_solver.parameters(),
-                                                 lr=0.005,
-                                                 betas=(0.9, 0.99),
-                                                 weight_decay=0.00)
                 y_next_t = self.sigma2(self.Con_solver(gamma_avg, y_next))
-                y_next.requires_grad_(True)
-                y_next_t.requires_grad_(True)
 
-                for param in self.Con_solver.parameters():
-                    param.requires_grad_(True)
-
+                optimizer_Con_Solver = self.optimizer
                 loss = self.Con_solver.dydt_loss
-                loss.requires_grad_(True)
-
                 optimizer_Con_Solver.zero_grad()
                 loss.backward(retain_graph=True)
                 optimizer_Con_Solver.step()
 
-
-
                 self.eval()
 
-                y_next.grad = None
-                y_next_t.grad = None
-                for param in self.Con_solver.parameters():
-                    param.requires_grad = False
             y_next_t = self.sigma2(self.Con_solver(gamma_avg, y_next))
-
+            # Restore the original parameters.
             for param, saved_data in zip(self.Con_solver.parameters(), original_Solver_params):
                 param.data.copy_(saved_data)
 
@@ -143,12 +129,12 @@ class CNM_UNet(nn.Module):
         elif activefunc == 'softplus':
             self.act = nn.Softplus()
         self.drop = nn.Dropout(p=droprate)
-        self.ker = kernel_size
+        self.ker = kernel_size  #
         self.pad = (self.ker - 1) // 2
 
         self.n_channels = n_channels
         self.n_classes = n_classes
-        self.bilinear = bilinear # 双线性插值标记
+        self.bilinear = bilinear
 
         self.inc = DoubleConv(n_channels, 64)
         self.down1 = Down(64, 128)
@@ -156,7 +142,7 @@ class CNM_UNet(nn.Module):
         self.down3 = Down(256, 512)
         self.down4 = Down(512, 512)
 
-        # 多输入分支
+        # CNM-Block with Multiple Input Branches
         self.Mult_up = CNM_Block(delta=cfg.delta_t, in_channel1=64, in_channel2=128, in_channel3=256,
                                  in_channel4=512, in_channel5=512, out_channel=cfg.y0_channel, kernel_size=self.ker, stride=1, padding=self.pad)
 
@@ -173,6 +159,7 @@ class CNM_UNet(nn.Module):
                 m.new_sample = new_sample
                 flag += 1
         return flag
+
 
     def forward(self, x):
         if (cfg.b_para):
@@ -202,8 +189,10 @@ class CNM_UNet(nn.Module):
 
 
 if __name__ == '__main__':
-    net = CNM_UNet(activefunc='softplus', droprate=0.1, kernel_size=3, n_channels=3, n_classes=2).cuda()
+
+    net = CNM_UNet(activefunc='softplus', droprate=0.1, kernel_size=3, n_channels=3, n_classes=1).cuda()
     from thop import profile
+
 
     dummy_input = torch.randn(1, 3, 512, 512).cuda()
     flops, params = profile(net, (dummy_input,))
