@@ -7,7 +7,18 @@
 
 **1. Prepare the dataset.**
 
-- The ISIC18, Polyp, and OD/OC datasets can be downloaded from [Google Drive](https://drive.google.com/drive/folders/1fxFPTyHtLiMPvbC8RX19lYNk-xPH8gW-). 
+- The [ISIC18](https://www.fc.up.pt/addi/ph2%20database.html) dataset is divided into training and validation sets at a 7:3 ratio, with the following file structure:
+  - train
+    - images
+      - .png
+    - masks
+      - .png
+  - val
+    - images
+      - .png
+    - masks
+      - .png
+- The preprocessed Polyp and OD/OC datasets can be downloaded from [Google Drive](https://drive.google.com/drive/folders/1axgu3-65un-wA_1OH-tQIUIEHEDrnS_-?usp=drive_link).
 - After downloading, please place the datasets into the following directories:
 
   - './ISIC18/data/ISIC18/'
